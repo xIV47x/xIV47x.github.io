@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSC/TK Consumables Log - WoW TBC Classic</title>
+    <!-- Tailwind CSS für das Dark Theme -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0b0f19;
+            background-image: radial-gradient(at 50% 0%, #1e1b4b 0px, transparent 50%), radial-gradient(at 0% 100%, #030712 0px, transparent 50%);
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen font-sans">
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:justify-between md:items-center border-b border-slate-800 pb-6 mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
+                    SSC/TK Consumables Auswertung
+                </h1>
+                <p class="text-sm text-slate-400 mt-1">Gilden-Dashboard zur Überprüfung der Raid-Vorbereitung (WoW TBC Classic)</p>
+            </div>
+            
+            <!-- Raid Selector Tabs -->
+            <div class="flex bg-slate-900 p-1 rounded-lg border border-slate-800">
+                <button id="btn-raid1" onclick="switchRaid('18.06.2026')" class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-indigo-600 text-white shadow-sm">
+                    Raid 1: 18.06.2026
+                </button>
+                <button id="btn-raid2" onclick="switchRaid('21.06.2026')" class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-400 hover:text-slate-200">
+                    Raid 2: 21.06.2026
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Overview Row -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Flasks -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur-sm">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Fläschchen & Elixiere</div>
+                <div class="text-3xl font-bold mt-2 text-indigo-400" id="stat-flask">-%</div>
+                <p class="text-xs text-slate-500 mt-1">Aktiver Raid-Durchschnitt</p>
+            </div>
+            <!-- Buffood (Korrigierte ID von stat-food auf stat-buffood) -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur-sm">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Buff-Food</div>
+                <div class="text-3xl font-bold mt-2 text-emerald-400" id="stat-buffood">-%</div>
+                <p class="text-xs text-slate-500 mt-1">Aktiver Raid-Durchschnitt</p>
+            </div>
+            <!-- Scrolls -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur-sm">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Rollen (Scrolls)</div>
+                <div class="text-3xl font-bold mt-2 text-amber-400" id="stat-scrolls">-%</div>
+                <p class="text-xs text-slate-500 mt-1">Sinnvolle Klassen berücksichtigt</p>
+            </div>
+            <!-- Weapon Enhancements -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur-sm">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Waffen-Enhancements</div>
+                <div class="text-3xl font-bold mt-2 text-rose-400" id="stat-weapon">-%</div>
+                <p class="text-xs text-slate-500 mt-1">Öle, Schleifsteine & Co.</p>
+            </div>
+        </section>
+
+        <!-- Main Card with Table -->
+        <main class="bg-slate-950 border border-slate-800/80 rounded-2xl shadow-xl overflow-hidden">
+            <!-- Table Header Controls -->
+            <div class="p-6 border-b border-slate-800 bg-slate-900/30 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="relative max-w-md w-full">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-500">
+                        🔍
+                    </span>
+                    <input type="text" id="search-input" oninput="handleSearch()" placeholder="Nach Raider oder Klasse filtern..." class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors">
+                </div>
+                
+                <!-- Legend -->
+                <div class="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                    <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>90%+</span>
+                    <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-amber-500 mr-2"></span>50% - 89%</span>
+                    <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-rose-500 mr-2"></span>&lt; 50%</span>
+                    <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-slate-600 mr-2"></span>Nicht benötigt (-)</span>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-800 bg-slate-900/10 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            <th onclick="handleSort('name')" class="p-4 cursor-pointer hover:text-white transition-colors">Raider <span class="text-[9px]" id="sort-icon-name">↕</span></th>
+                            <th onclick="handleSort('spec')" class="p-4 cursor-pointer hover:text-white transition-colors">Spec / Klasse <span class="text-[9px]" id="sort-icon-spec">↕</span></th>
+                            <th onclick="handleSort('flask')" class="p-4 cursor-pointer hover:text-white transition-colors text-center">Flask / Elixir <span class="text-[9px]" id="sort-icon-flask">↕</span></th>
+                            <th onclick="handleSort('scrolls')" class="p-4 cursor-pointer hover:text-white transition-colors text-center">Scrolls <span class="text-[9px]" id="sort-icon-scrolls">↕</span></th>
+                            <th onclick="handleSort('buffood')" class="p-4 cursor-pointer hover:text-white transition-colors text-center">Buffood <span class="text-[9px]" id="sort-icon-buffood">↕</span></th>
+                            <th onclick="handleSort('weapon')" class="p-4 cursor-pointer hover:text-white transition-colors text-center">Waffen-Enh. <span class="text-[9px]" id="sort-icon-weapon">↕</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-slate-800/50 text-sm">
+                        <!-- Wird dynamisch geladen -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="mt-8 text-center text-xs text-slate-500">
+            Daten basieren auf der Auswertung vom 18.06.2026 und 21.06.2026. Stand: 2026.
+        </footer>
+    </div>
+
+    <script>
+        // Aufbereitete Daten aus deiner CSV
+        const raidData = {
+          "18.06.2026": [
+            { name: "Baerz", spec: "Druid - Feral", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "11 / 11", pct: 100 }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Scelly", spec: "Druid - Feral", flask: { val: "10 / 11", pct: 91, note: "ohne Guardian als Katze gespielt" }, scrolls: { val: "0 / 11", pct: 0 }, buffood: { val: "7 / 11", pct: 64 }, weapon: { val: "5 / 11", pct: 45, note: "5 / 8 wegen Tankwaffe" } },
+            { name: "Xess", spec: "Warrior - Fury", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "2 / 11", pct: 18 }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Jpz", spec: "Shaman - Enh", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "0 / 11", pct: 0 }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "-", pct: null } },
+            { name: "Lucyvera", spec: "Druid - Feral", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "9 / 11", pct: 82, note: "Str 0/11, Agi 9/11" }, buffood: { val: "9 / 11", pct: 82 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Socke", spec: "Hunter", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "11 / 11", pct: 100 }, buffood: { val: "9 / 11", pct: 82 }, weapon: { val: "-", pct: null } },
+            { name: "Alpilein", spec: "Rogue", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "0 / 11", pct: 0 }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "-", pct: null } },
+            { name: "Teshkul", spec: "Warrior - Arms", flask: { val: "10 / 11", pct: 91, note: "Zockt nur Battle Elixir statt Flask" }, scrolls: { val: "6 / 11", pct: 55, note: "Str 6/11, Agi 0/11" }, buffood: { val: "9 / 11", pct: 82 }, weapon: { val: "-", pct: null } },
+            { name: "Neno", spec: "Shaman - Enh", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "0 / 11", pct: 0 }, buffood: { val: "10 / 11", pct: 91 }, weapon: { val: "-", pct: null } },
+            { name: "Powergockel", spec: "Pala - Ret", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "0 / 11", pct: 0 }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "-", pct: null } },
+            { name: "Oboy", spec: "Mage", flask: { val: "3 / 11", pct: 27 }, scrolls: { val: "-", pct: null }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "9 / 11", pct: 82 } },
+            { name: "Unru", spec: "Mage", flask: { val: "11 / 11", pct: 100, note: "8 Flask, 3 Battle Elixir" }, scrolls: { val: "-", pct: null }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "9 / 11", pct: 82 } },
+            { name: "Merriweather", spec: "Pala Tank", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "-", pct: null }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "10 / 11", pct: 91 } },
+            { name: "Katori", spec: "SPriest", flask: { val: "11 / 11", pct: 100, note: "5 BElixir, 6 Flask" }, scrolls: { val: "-", pct: null }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "7 / 11", pct: 64 } },
+            { name: "Navarac", spec: "Ele", flask: { val: "11 / 11", pct: 100, note: "3 BElixir, 8 Flask" }, scrolls: { val: "-", pct: null }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "10 / 11", pct: 91 } },
+            { name: "Gibmalfeuer", spec: "Warlock", flask: { val: "8 / 11", pct: 73 }, scrolls: { val: "-", pct: null }, buffood: { val: "10 / 11", pct: 91 }, weapon: { val: "8 / 11", pct: 73 } },
+            { name: "Midgwen", spec: "Warlock", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "-", pct: null }, buffood: { val: "8 / 11", pct: 73 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Picx", spec: "Mage", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "-", pct: null }, buffood: { val: "9 / 11", pct: 82 }, weapon: { val: "11 / 11", pct: 100 } }
+          ],
+          "21.06.2026": [
+            { name: "Baerz", spec: "Druid - Feral", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "11 / 11", pct: 100 }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Scelly", spec: "Hunter", flask: { val: "10 / 11", pct: 91, note: "Nur BElixir" }, scrolls: { val: "0 / 11", pct: 0 }, buffood: { val: "8 / 11", pct: 73 }, weapon: { val: "2 / 11", pct: 18 } },
+            { name: "Xess", spec: "Warrior - Fury", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "1 / 11", pct: 9 }, buffood: { val: "10 / 11", pct: 91 }, weapon: { val: "9 / 11", pct: 82 } },
+            { name: "Jpz", spec: "Shaman - Enh", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "0 / 11", pct: 0 }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "-", pct: null } },
+            { name: "Lucyvera", spec: "Druid - Feral", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "10 / 11", pct: 91, note: "Str 0/11, Agi 10/11" }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "8 / 11", pct: 73 } },
+            { name: "Socke", spec: "Hunter", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "11 / 11", pct: 100 }, buffood: { val: "9 / 11", pct: 82 }, weapon: { val: "-", pct: null } },
+            { name: "Alpilein", spec: "Rogue", flask: { val: "10 / 11", pct: 91 }, scrolls: { val: "0 / 11", pct: 0 }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "-", pct: null } },
+            { name: "Teshkul", spec: "Warrior - Arms", flask: { val: "11 / 11", pct: 100, note: "Zockt nur Battle Elixir statt Flask" }, scrolls: { val: "1 / 11", pct: 9 }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "-", pct: null } },
+            { name: "Neno", spec: "Shaman - Enh", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "0 / 11", pct: 0 }, buffood: { val: "7 / 11", pct: 64 }, weapon: { val: "-", pct: null } },
+            { name: "Rihad", spec: "Warrior", flask: { val: "0 / 11", pct: 0 }, scrolls: { val: "5 / 11", pct: 45 }, buffood: { val: "5 / 11", pct: 45 }, weapon: { val: "-", pct: null } },
+            { name: "Oboy", spec: "Mage", flask: { val: "2 / 11", pct: 18 }, scrolls: { val: "-", pct: null }, buffood: { val: "8 / 11", pct: 73 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Unru", spec: "Mage", flask: { val: "11 / 11", pct: 100, note: "Elixir only" }, scrolls: { val: "-", pct: null }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Merriweather", spec: "Pala Tank", flask: { val: "10 / 11", pct: 91 }, scrolls: { val: "-", pct: null }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "8 / 11", pct: 73 } },
+            { name: "Katori", spec: "SPriest", flask: { val: "11 / 11", pct: 100, note: "6 BElixir, 5 Flask" }, scrolls: { val: "-", pct: null }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Navarac", spec: "Ele", flask: { val: "10 / 11", pct: 91, note: "7 Flask, 3 Belixir Only" }, scrolls: { val: "-", pct: null }, buffood: { val: "11 / 11", pct: 100 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Gibmalfeuer", spec: "Warlock", flask: { val: "11 / 11", pct: 100, note: "9 Flask, 2 Belixir Only" }, scrolls: { val: "-", pct: null }, buffood: { val: "10 / 11", pct: 91 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Midgwen", spec: "Warlock", flask: { val: "8 / 11", pct: 73, note: "Manchmal only Belixir" }, scrolls: { val: "-", pct: null }, buffood: { val: "4 / 11", pct: 36 }, weapon: { val: "8 / 11", pct: 73 } },
+            { name: "Picx", spec: "Mage", flask: { val: "11 / 11", pct: 100 }, scrolls: { val: "-", pct: null }, buffood: { val: "9 / 11", pct: 82 }, weapon: { val: "11 / 11", pct: 100 } },
+            { name: "Geffray", spec: "Warlock", flask: { val: "8 / 11", pct: 73, note: "Oft BElixir only" }, scrolls: { val: "-", pct: null }, buffood: { val: "8 / 11", pct: 73 }, weapon: { val: "8 / 11", pct: 73 } }
+          ]
+        };
+
+        // Standard WoW Klassenfarben
+        const classColorMap = {
+            "druid": "text-[#FF7C0A]",
+            "hunter": "text-[#AAD372]",
+            "mage": "text-[#3FC7EB]",
+            "pala": "text-[#F58CBA]",
+            "paladin": "text-[#F58CBA]",
+            "priest": "text-[#FFFFFF]",
+            "spriest": "text-[#FFFFFF]",
+            "rogue": "text-[#FFF468]",
+            "shaman": "text-[#0070DE]",
+            "warlock": "text-[#8787ED]",
+            "warrior": "text-[#C69B6D]"
+        };
+
+        let currentRaid = "18.06.2026";
+        let currentSort = { column: 'name', asc: true };
+        let currentSearch = "";
+
+        function getClassColorClass(spec) {
+            const lowerSpec = spec.toLowerCase();
+            for (const [key, colorClass] of Object.entries(classColorMap)) {
+                if (lowerSpec.includes(key)) return colorClass;
+            }
+            return "text-slate-300";
+        }
+
+        function switchRaid(raidDate) {
+            currentRaid = raidDate;
+            
+            const btn1 = document.getElementById('btn-raid1');
+            const btn2 = document.getElementById('btn-raid2');
+            
+            if (raidDate === "18.06.2026") {
+                btn1.className = "px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-indigo-600 text-white shadow-sm";
+                btn2.className = "px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-400 hover:text-slate-200";
+            } else {
+                btn1.className = "px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-400 hover:text-slate-200";
+                btn2.className = "px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-indigo-600 text-white shadow-sm";
+            }
+            
+            renderDashboard();
+        }
+
+        function handleSearch() {
+            currentSearch = document.getElementById('search-input').value.toLowerCase();
+            renderDashboard();
+        }
+
+        function handleSort(column) {
+            if (currentSort.column === column) {
+                currentSort.asc = !currentSort.asc;
+            } else {
+                currentSort.column = column;
+                currentSort.asc = true;
+            }
+            renderDashboard();
+        }
+
+        function getBadgeClass(pct) {
+            if (pct === null) return "bg-slate-800 text-slate-500 border border-slate-700/50";
+            if (pct >= 90) return "bg-emerald-950/80 text-emerald-400 border border-emerald-500/30";
+            if (pct >= 50) return "bg-amber-950/80 text-amber-400 border border-amber-500/30";
+            return "bg-rose-950/80 text-rose-400 border border-rose-500/30";
+        }
+
+        function calculateAverages(data) {
+            const keys = ['flask', 'scrolls', 'buffood', 'weapon'];
+            const stats = { 
+                flask: { sum: 0, count: 0 }, 
+                scrolls: { sum: 0, count: 0 }, 
+                buffood: { sum: 0, count: 0 }, 
+                weapon: { sum: 0, count: 0 } 
+            };
+            
+            data.forEach(row => {
+                keys.forEach(key => {
+                    if (row[key] && row[key].pct !== null) {
+                        stats[key].sum += row[key].pct;
+                        stats[key].count++;
+                    }
+                });
+            });
+
+            keys.forEach(key => {
+                const element = document.getElementById('stat-' + key);
+                if (element) {
+                    if (stats[key].count > 0) {
+                        const avg = Math.round(stats[key].sum / stats[key].count);
+                        element.innerText = avg + "%";
+                    } else {
+                        element.innerText = "-";
+                    }
+                }
+            });
+        }
+
+        function renderDashboard() {
+            let data = [...raidData[currentRaid]];
+
+            // Filter anwenden
+            if (currentSearch) {
+                data = data.filter(player => 
+                    player.name.toLowerCase().includes(currentSearch) || 
+                    player.spec.toLowerCase().includes(currentSearch)
+                );
+            }
+
+            // Averages über die gefilterten Daten berechnen
+            calculateAverages(data);
+
+            // Sortierung anwenden
+            data.sort((a, b) => {
+                let valA, valB;
+                if (currentSort.column === 'name' || currentSort.column === 'spec') {
+                    valA = a[currentSort.column].toLowerCase();
+                    valB = b[currentSort.column].toLowerCase();
+                } else {
+                    valA = a[currentSort.column].pct !== null ? a[currentSort.column].pct : -1;
+                    valB = b[currentSort.column].pct !== null ? b[currentSort.column].pct : -1;
+                }
+
+                if (valA < valB) return currentSort.asc ? -1 : 1;
+                if (valA > valB) return currentSort.asc ? 1 : -1;
+                return 0;
+            });
+
+            // Icons updaten (Sichere String-Konkatenation statt Backticks)
+            const columns = ['name', 'spec', 'flask', 'scrolls', 'buffood', 'weapon'];
+            columns.forEach(col => {
+                const icon = document.getElementById('sort-icon-' + col);
+                if (icon) {
+                    if (currentSort.column === col) {
+                        icon.innerText = currentSort.asc ? "▲" : "▼";
+                        icon.className = "text-indigo-400 font-bold ml-1";
+                    } else {
+                        icon.innerText = "↕";
+                        icon.className = "text-slate-600 ml-1";
+                    }
+                }
+            });
+
+            // Tabelle aufbauen
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = "";
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-500">Keine Raider gefunden.</td></tr>';
+                return;
+            }
+
+            data.forEach(player => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900/40 transition-colors duration-150 border-b border-slate-800/40";
+
+                const classColor = getClassColorClass(player.spec);
+
+                tr.innerHTML = 
+                    '<td class="p-4 font-semibold ' + classColor + '">' + player.name + '</td>' +
+                    '<td class="p-4 text-slate-400 font-medium">' + player.spec + '</td>' +
+                    '<td class="p-4 text-center">' + renderCell(player.flask) + '</td>' +
+                    '<td class="p-4 text-center">' + renderCell(player.scrolls) + '</td>' +
+                    '<td class="p-4 text-center">' + renderCell(player.buffood) + '</td>' +
+                    '<td class="p-4 text-center">' + renderCell(player.weapon) + '</td>';
+                
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderCell(field) {
+            const badgeClass = getBadgeClass(field.pct);
+            const displayValue = field.val;
+            
+            let noteHtml = "";
+            if (field.note) {
+                noteHtml = '<div class="text-[10px] text-slate-400 font-normal italic mt-1 leading-tight max-w-[140px] mx-auto opacity-80" title="' + field.note + '">' +
+                    field.note +
+                '</div>';
+            }
+
+            return '<div class="inline-block">' +
+                '<span class="inline-flex items-center justify-center px-2.5 py-1 text-xs font-semibold rounded-md ' + badgeClass + ' min-w-[55px]">' +
+                    displayValue +
+                '</span>' +
+                noteHtml +
+            '</div>';
+        }
+
+        // Initiales Laden
+        window.onload = function() {
+            renderDashboard();
+        };
+    </script>
+</body>
+</html>
